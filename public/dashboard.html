@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECEACE | Trazabilidad Digital</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f6f9; }
+        .card-equipo { 
+            transition: transform 0.2s; 
+            border: none; 
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .card-equipo:hover { transform: translateY(-5px); }
+        .status-indicator {
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        /* Efectos de luz brillante para el semáforo */
+        .bg-success-glow { background-color: #28a745; box-shadow: 0 0 10px #28a745; }
+        .bg-danger-glow { background-color: #dc3545; box-shadow: 0 0 10px #dc3545; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-dark bg-dark mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <strong>ECEACE</strong> Digital
+            </a>
+            <span class="navbar-text text-white">Cliente: <strong>Hospital Regional</strong></span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h2 class="mb-4 text-center">Estado de Equipos en Tiempo Real</h2>
+
+        <div class="row" id="equipos-container">
+            <div class="col-md-4 mb-4">
+                <div class="card card-equipo p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Tablero General UCI</h5>
+                        <span class="status-indicator bg-success-glow"></span>
+                    </div>
+                    <hr>
+                    <p class="text-muted small">Ubicación: Pabellón A</p>
+                    <p class="mb-0"><strong>Estado: OPERATIVO</strong></p>
+                    <small class="text-muted">Última revisión: Hoy, 09:00 AM</small>
+                </div>
+            </div>
+
+            <div class="col-md-4 mb-4">
+                <div class="card card-equipo p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Generador Auxiliar 2</h5>
+                        <span class="status-indicator bg-danger-glow"></span>
+                    </div>
+                    <hr>
+                    <p class="text-muted small">Ubicación: Subterráneo</p>
+                    <p class="text-danger mb-0"><strong>Estado: FALLA CRÍTICA</strong></p>
+                    <small class="text-muted">Última revisión: Ayer, 18:30 PM</small>
+                </div>
+            </div>
+
+            <div class="col-md-4 mb-4">
+                <div class="card card-equipo p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Banco Condensadores</h5>
+                        <span class="status-indicator bg-success-glow"></span>
+                    </div>
+                    <hr>
+                    <p class="text-muted small">Ubicación: Sala Eléctrica 1</p>
+                    <p class="mb-0"><strong>Estado: OPERATIVO</strong></p>
+                    <small class="text-muted">Última revisión: Hoy, 10:15 AM</small>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</body>
+</html>
