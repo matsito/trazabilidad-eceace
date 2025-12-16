@@ -19,7 +19,7 @@
 <body>
 
     <div class="container py-4" style="max-width: 600px;">
-       
+        
         <div id="loading" class="text-center py-5">
             <div class="spinner-border text-primary" role="status"></div>
             <p>Cargando información...</p>
@@ -59,7 +59,7 @@
     </div>
 
     <script>
-        // Variables globales para guardar el PDF en memoria
+        
         let globalPdfData = null;
         let globalPdfName = "documento.pdf";
 
@@ -73,29 +73,29 @@
                 const response = await fetch(`/api/equipos/${id}`);
                 if (!response.ok) throw new Error("Error");
                 const data = await response.json(); 
-
+                const eq = data.equipo;
 
                 document.getElementById('loading').classList.add('d-none');
                 document.getElementById('ficha-container').classList.remove('d-none');
 
-                const eq = data.equipo;
+               
                 document.getElementById('nombre-equipo').innerText = eq.nombre;
                 document.getElementById('ubicacion-equipo').innerText = eq.ubicacion;
                 document.getElementById('id-equipo').innerText = `#${eq.id}`;
 
-                // === LÓGICA DE PDF MEJORADA ===
+                
                 if (eq.pdf_data) {
-                    // Guardamos los datos en variables globales en lugar de ponerlos en el HTML
+                    
                     globalPdfData = eq.pdf_data;
                     globalPdfName = eq.pdf_nombre || `certificado_equipo_${eq.id}.pdf`;
-
+                    
                     document.getElementById('pdf-container').classList.remove('d-none');
                     
-                    // Asignamos la función de descarga al botón
+                    
                     document.getElementById('btn-pdf').onclick = descargarPDF;
                 }
 
-                // Colores y Estados
+                
                 const header = document.getElementById('header-status');
                 const txt = document.getElementById('estado-texto');
                 const ico = header.querySelector('h1');
@@ -110,10 +110,10 @@
                     ico.innerHTML = '&#10004;';
                 }
 
-                // Historial
+                
                 const timeline = document.getElementById('historial-timeline');
                 timeline.innerHTML = '';
-               
+                
                 data.historial.forEach(h => {
                     const fecha = new Date(h.fecha).toLocaleString();
                     timeline.innerHTML += `
@@ -122,50 +122,44 @@
                             <small class="text-muted">${fecha}</small>
                             <p class="mt-1 mb-0 text-dark">${h.descripcion}</p>
                             <span class="badge bg-secondary">${h.estado_en_ese_momento}</span>
-                        </div>
-                    `;
+                        </div>`;
                 });
 
             } catch (error) { console.error(error); }
         }
 
-        // === FUNCIÓN MAGICA PARA DESCARGAR (Soluciona el error de "no pasa nada") ===
+        
         function descargarPDF() {
             if (!globalPdfData) return alert("No hay documento disponible");
-
+            
             try {
-                // 1. Convertir la base64 (texto) a un Blob (archivo binario)
+                
                 const arr = globalPdfData.split(',');
                 const mime = arr[0].match(/:(.*?);/)[1];
                 const bstr = atob(arr[1]);
                 let n = bstr.length;
                 const u8arr = new Uint8Array(n);
-                
-                while(n--){
-                    u8arr[n] = bstr.charCodeAt(n);
-                }
-                
+                while(n--){ u8arr[n] = bstr.charCodeAt(n); }
                 const blob = new Blob([u8arr], {type:mime});
                 
-                // 2. Crear una URL temporal interna
+                
                 const url = URL.createObjectURL(blob);
                 
-                // 3. Forzar la descarga
+                
                 const link = document.createElement('a');
                 link.href = url;
                 link.download = globalPdfName;
                 document.body.appendChild(link);
                 link.click();
-                
-                // 4. Limpiar
+               
                 document.body.removeChild(link);
                 URL.revokeObjectURL(url);
             } catch (e) {
                 console.error(e);
-                alert("Error al procesar el archivo. Intente subirlo nuevamente.");
+                alert("Error al procesar el archivo.");
             }
         }
-
+       
         cargarFicha();
     </script>
 </body>

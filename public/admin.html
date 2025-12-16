@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Centro de Mando | ECEACE</title>
+    
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#212529">
+    <link rel="apple-touch-icon" href="/logo.png">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
@@ -144,7 +149,7 @@
                                 </table>
                             </div>
                         </div>
-                   
+                    
                     </div>
 
                 </div>
@@ -155,6 +160,13 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
+        // === REGISTRAR SERVICE WORKER (Para que sea App instalable) ===
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(() => console.log('App lista para instalar'))
+                .catch(err => console.log('Error SW:', err));
+        }
+
         // === UTILIDADES ===
         const convertBase64 = (file) => new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -188,7 +200,7 @@
                 document.getElementById('qrcode-crear').innerHTML = "";
                 new QRCode(document.getElementById("qrcode-crear"), { text: `${window.location.origin}/detalle?id=${json.id}`, width:128, height:128 });
                 document.getElementById('form-crear').reset();
-                cargarLista(); // Actualizar la tabla de al lado si se cambia de pestaña
+                cargarLista(); 
             }
         });
 
@@ -213,23 +225,23 @@
             });
         }
 
-        // === 3. SELECCIONAR EQUIPO (Cargar Formulario y QR) ===
+        // === 3. SELECCIONAR EQUIPO ===
         async function cargarEquipo(id) {
-            // UI
+            
             document.getElementById('msg-seleccione').classList.add('d-none');
             document.getElementById('editor-container').classList.remove('d-none');
             
-            // Datos
+            
             const res = await fetch(`/api/equipos/${id}`);
             const data = await res.json();
             const eq = data.equipo;
 
-            // Rellenar Campos Básicos
+            
             document.getElementById('e-id').value = eq.id;
             document.getElementById('edit-nombre').value = eq.nombre;
             document.getElementById('edit-ubicacion').value = eq.ubicacion;
             
-            // Aviso PDF
+            
             const pdfStatus = document.getElementById('pdf-status');
             if(eq.pdf_nombre) {
                 pdfStatus.classList.remove('d-none');
@@ -238,19 +250,19 @@
                 pdfStatus.classList.add('d-none');
             }
 
-            // Generar QR
+            
             const qrContainer = document.getElementById('qrcode-edit');
             qrContainer.innerHTML = "";
             const url = `${window.location.origin}/detalle?id=${eq.id}`;
             new QRCode(qrContainer, { text: url, width: 160, height: 160 });
             document.getElementById('url-edit').innerText = url;
 
-            // Preparar Revisión
+           
             const now = new Date();
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             document.getElementById('r-fecha').value = now.toISOString().slice(0,16);
 
-            // Historial (Solo los últimos 3 para no saturar)
+            
             const historialDiv = document.getElementById('lista-historial');
             historialDiv.innerHTML = '';
             data.historial.slice(0, 3).forEach(h => {
@@ -263,7 +275,7 @@
             });
         }
 
-        // === 4. GUARDAR EDICIÓN BÁSICA ===
+        // === 4. GUARDAR EDICIÓN ===
         document.getElementById('form-editar-basico').addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('e-id').value;
@@ -279,13 +291,13 @@
                 nombre: document.getElementById('edit-nombre').value,
                 ubicacion: document.getElementById('edit-ubicacion').value,
                 pdf_data: pdfData, pdf_nombre: pdfName,
-                estado: "OPERATIVO" // Dummy, no cambia el estado real aquí
+                estado: "OPERATIVO"
             };
 
             await fetch(`/api/equipos/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
             alert("Datos actualizados");
-            cargarLista(); // Refrescar tabla
-            cargarEquipo(id); // Refrescar formulario
+            cargarLista(); 
+            cargarEquipo(id); 
         });
 
         // === 5. GUARDAR REVISIÓN ===
@@ -305,7 +317,7 @@
             cargarEquipo(id);
         });
 
-        // === 6. LIMPIAR Y FILTRAR ===
+        
         function limpiarFormulario() {
             document.getElementById('editor-container').classList.add('d-none');
             document.getElementById('msg-seleccione').classList.remove('d-none');

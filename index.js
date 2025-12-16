@@ -25,7 +25,7 @@ app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'adm
 
 // === API (CEREBRO) ===
 
-// 1. Dashboard
+// 1. Dashboard (Lista simple)
 app.get('/api/equipos', async (req, res) => {
     try {
         const result = await pool.query('SELECT id, nombre, ubicacion, estado, ultima_revision FROM equipos ORDER BY id ASC');
@@ -34,7 +34,7 @@ app.get('/api/equipos', async (req, res) => {
     } catch (err) { res.status(500).send(err.message); }
 });
 
-// 2. Detalle único (INCLUYENDO PDF)
+// 2. Detalle único (Con PDF e Historial)
 app.get('/api/equipos/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -42,7 +42,6 @@ app.get('/api/equipos/:id', async (req, res) => {
         const equipoResult = await pool.query('SELECT * FROM equipos WHERE id = $1', [id]);
         if (equipoResult.rows.length === 0) return res.status(404).json({ mensaje: "No encontrado" });
 
-        
         const historialResult = await pool.query('SELECT * FROM historial WHERE equipo_id = $1 ORDER BY fecha DESC', [id]);
 
         res.json({ equipo: equipoResult.rows[0], historial: historialResult.rows });
@@ -69,15 +68,14 @@ app.post('/api/equipos', async (req, res) => {
     } catch (err) { res.status(500).send(err.message); }
 });
 
-// 4. Actualizar Equipo (Y subir/cambiar PDF si quieren)
+// 4. Actualizar Equipo (Y subir/cambiar PDF)
 app.put('/api/equipos/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { nombre, ubicacion, estado, ultima_revision, pdf_data, pdf_nombre } = req.body;
         const fechaFinal = ultima_revision ? ultima_revision : new Date();
 
-        // Lógica: Si envían un PDF nuevo, lo actualizamos. Si no, dejamos el que estaba.
-        // COALESCE en SQL significa: "Si el dato nuevo es null, usa el que ya estaba en la tabla"
+        
         await pool.query(
             `UPDATE equipos SET 
                 nombre=$1, 
@@ -102,7 +100,6 @@ app.post('/api/equipos/:id/revision', async (req, res) => {
         
         const fechaFinal = fecha ? fecha : new Date();
 
-        
         await pool.query(
             'INSERT INTO historial (equipo_id, encargado, descripcion, fecha, estado_en_ese_momento) VALUES ($1, $2, $3, $4, $5)',
             [id, encargado, descripcion, fechaFinal, nuevo_estado]
