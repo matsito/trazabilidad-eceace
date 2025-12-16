@@ -1,107 +1,92 @@
 const express = require('express');
 const { Pool } = require('pg'); 
 const path = require('path');
+const cors = require('cors'); // Agregamos cors por seguridad básica
 
 const app = express();
 const port = process.env.PORT || 8080; 
 
-// === 1. CONFIGURACIÓN DE BASE DE DATOS ===
+// === 1. CONFIGURACIÓN ===
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// === 2. MIDDLEWARES (Configuración necesaria) ===
-app.use(express.json()); // Permite leer datos JSON (para crear equipos)
+
+app.use(express.json());
+
 app.use(express.urlencoded({ extended: true }));
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(cors());
 
+// === 2. RUTAS WEB ===
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
+app.get('/detalle', (req, res) => res.sendFile(path.join(__dirname, 'public', 'detalle.html')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
+// === 3. API (CEREBRO) ===
 
-// === 3. RUTAS WEB (Lo que ve el usuario) ===
-
-// A. Página Principal (Dashboard)
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
-});
-
-// B. Página de Detalle (Ficha QR)
-app.get('/detalle', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'detalle.html'));
-});
-
-// C. Panel de Admin (Fábrica de QRs)
-// Entras poniendo /admin.html o simplemente /admin
-app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
-});
-
-// === 4. API (Cerebro de datos) ===
-
-// API 1: Obtener TODOS los equipos
+// A. Obtener TODOS (Para Dashboard)
 app.get('/api/equipos', async (req, res) => {
     try {
-        
 
+       
+        
         const result = await pool.query('SELECT * FROM equipos ORDER BY id ASC');
         
+        
         res.json(result.rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Error al obtener equipos');
-    }
+
+
+
+    } catch (err) { res.status(500).send(err.message); }
 });
 
-// API 2: Obtener UN SOLO equipo (Por ID)
+// B. Obtener UNO (Para Ficha QR y para Editar)
 app.get('/api/equipos/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const result = await pool.query('SELECT * FROM equipos WHERE id = $1', [id]);
-        
-        if (result.rows.length === 0) {
-            return res.status(404).json({ mensaje: "Equipo no encontrado" });
-        }
-        
+        if (result.rows.length === 0) return res.status(404).json({ mensaje: "No encontrado" });
         res.json(result.rows[0]);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Error al buscar el equipo');
-    }
+    } catch (err) { res.status(500).send(err.message); }
 });
 
-// API 3: CREAR UN NUEVO EQUIPO (Guardar en Base de Datos)
-// Esta es la parte que usa el Admin Panel
+// C. CREAR NUEVO (Con fecha manual opcional)
 app.post('/api/equipos', async (req, res) => {
     try {
-        const { nombre, ubicacion, estado } = req.body;
+        const { nombre, ubicacion, estado, ultima_revision } = req.body;
         
-        // Insertamos y pedimos que nos devuelva el ID nuevo (RETURNING id)
+        // Si no mandan fecha, usamos la actual. Si mandan, usamos esa.
+        const fechaFinal = ultima_revision ? ultima_revision : new Date();
+
         const result = await pool.query(
-            'INSERT INTO equipos (nombre, ubicacion, estado) VALUES ($1, $2, $3) RETURNING id',
-            [nombre, ubicacion, estado]
+            'INSERT INTO equipos (nombre, ubicacion, estado, ultima_revision) VALUES ($1, $2, $3, $4) RETURNING id',
+            [nombre, ubicacion, estado, fechaFinal]
+        );
+        res.json({ mensaje: 'Creado', id: result.rows[0].id });
+    } catch (err) { res.status(500).send(err.message); }
+});
+
+// D. ACTUALIZAR EQUIPO (¡NUEVO!)
+// Permite cambiar estado y fecha sin cambiar el ID (el QR sigue sirviendo)
+app.put('/api/equipos/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { estado, ultima_revision, nombre, ubicacion } = req.body; // Recibimos todo por si acaso
+
+        const fechaFinal = ultima_revision ? ultima_revision : new Date();
+
+        // Actualizamos en la base de datos
+        await pool.query(
+            'UPDATE equipos SET nombre=$1, ubicacion=$2, estado=$3, ultima_revision=$4 WHERE id=$5',
+            [nombre, ubicacion, estado, fechaFinal, id]
         );
         
-        // Respondemos con el ID para que el frontend pueda crear el QR
-        res.json({ mensaje: 'Equipo creado correctamente', id: result.rows[0].id });
-        
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Error al guardar equipo');
-    }
+        res.json({ mensaje: 'Actualizado correctamente' });
+    } catch (err) { res.status(500).send(err.message); }
 });
 
-// Prueba de conexión simple
-app.get('/test-db', async (req, res) => {
-    try {
-        const result = await pool.query('SELECT NOW()');
-        res.json({ estado: 'Conectado', fecha: result.rows[0].now });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// === 5. INICIAR SERVIDOR ===
-app.listen(port, () => {
-    console.log(`Servidor ECEACE listo en el puerto ${port}`);
-});
+// === INICIO ===
+app.listen(port, () => console.log(`Servidor listo puerto ${port}`));
