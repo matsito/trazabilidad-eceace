@@ -8,7 +8,7 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#212529">
     <link rel="apple-touch-icon" href="/logo.png">
-
+    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
@@ -37,7 +37,7 @@
         </ul>
 
         <div class="tab-content">
-            
+           
             <div class="tab-pane fade show active" id="panel-crear">
                 <div class="row justify-content-center">
                     <div class="col-md-5 admin-card">
@@ -47,7 +47,7 @@
                             <input type="text" id="c-ubicacion" class="form-control mb-2" placeholder="Ubicación" required>
                             <label class="small text-muted">Certificado PDF (Opcional)</label>
                             <input type="file" id="c-pdf" class="form-control mb-3" accept="application/pdf">
-                            
+                          
                             <select id="c-estado" class="form-select mb-3">
                                 <option value="OPERATIVO">🟢 OPERATIVO</option>
                                 <option value="FALLA CRÍTICA">🔴 FALLA CRÍTICA</option>
@@ -64,35 +64,29 @@
 
             <div class="tab-pane fade" id="panel-editar">
                 <div class="row">
-                    
+                   
                     <div class="col-md-5">
                         <div class="admin-card border-top border-4 border-warning">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h5 class="mb-0">Detalles del Equipo</h5>
                                 <button class="btn btn-outline-secondary btn-sm" onclick="limpiarFormulario()">🧹 Limpiar</button>
                             </div>
-
+                           
                             <div id="msg-seleccione" class="text-center py-5 text-muted">
-                                <p>👈 Selecciona un equipo de la tabla para ver sus detalles y QR.</p>
+                                <p>👈 Selecciona un equipo de la tabla para ver sus detalles.</p>
                             </div>
-
+                           
                             <div id="editor-container" class="d-none">
                                 <div class="text-center mb-4">
                                     <div id="qrcode-edit" class="d-flex justify-content-center qr-preview mb-2"></div>
                                     <small id="url-edit" class="text-muted" style="font-size: 0.7rem;"></small>
                                 </div>
-
+                               
                                 <form id="form-editar-basico" class="mb-3 p-3 bg-light rounded">
                                     <h6 class="text-muted mb-2">✏️ Editar Info Básica</h6>
                                     <input type="hidden" id="e-id">
-                                    <div class="mb-2">
-                                        <label class="small">Nombre</label>
-                                        <input type="text" id="edit-nombre" class="form-control form-control-sm">
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="small">Ubicación</label>
-                                        <input type="text" id="edit-ubicacion" class="form-control form-control-sm">
-                                    </div>
+                                    <div class="mb-2"><label class="small">Nombre</label><input type="text" id="edit-nombre" class="form-control form-control-sm"></div>
+                                    <div class="mb-2"><label class="small">Ubicación</label><input type="text" id="edit-ubicacion" class="form-control form-control-sm"></div>
                                     <div class="mb-2">
                                         <label class="small">Actualizar PDF</label>
                                         <input type="file" id="edit-pdf" class="form-control form-control-sm" accept="application/pdf">
@@ -100,7 +94,7 @@
                                     </div>
                                     <button type="submit" class="btn btn-dark btn-sm w-100">Guardar Cambios Básicos</button>
                                 </form>
-
+                               
                                 <form id="form-save-revision" class="p-3 border rounded">
                                     <h6 class="text-muted mb-2">🛠️ Agregar Revisión</h6>
                                     <div class="row g-2 mb-2">
@@ -114,7 +108,7 @@
                                     </select>
                                     <button type="submit" class="btn btn-warning btn-sm w-100 fw-bold">Guardar Revisión</button>
                                 </form>
-
+                                
                                 <div class="mt-4">
                                     <h6 class="small text-muted">📜 Últimas 3 revisiones</h6>
                                     <div id="lista-historial"></div>
@@ -133,25 +127,24 @@
                                 <span class="input-group-text">🔍</span>
                                 <input type="text" id="filtro-tabla" class="form-control" placeholder="Buscar por nombre..." onkeyup="filtrarTabla()">
                             </div>
-                            
+                           
                             <div class="table-container">
-                                <table class="table table-hover table-bordered">
+                                <table class="table table-hover table-bordered align-middle">
                                     <thead class="table-light sticky-top">
                                         <tr>
                                             <th width="10%">ID</th>
                                             <th>Nombre</th>
                                             <th>Estado</th>
-                                            <th width="10%">Ver</th>
+                                            <th width="15%">Acciones</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="tabla-equipos">
-                                        </tbody>
+                                    <tbody id="tabla-equipos"></tbody>
                                 </table>
                             </div>
                         </div>
-                    
+                   
                     </div>
-
+                
                 </div>
             </div>
         </div>
@@ -160,14 +153,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        // === REGISTRAR SERVICE WORKER (Para que sea App instalable) ===
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/service-worker.js')
-                .then(() => console.log('App lista para instalar'))
-                .catch(err => console.log('Error SW:', err));
-        }
-
-        // === UTILIDADES ===
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js');
         const convertBase64 = (file) => new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
@@ -175,7 +161,7 @@
             reader.onerror = error => reject(error);
         });
 
-        // === 1. CREAR EQUIPO ===
+        // CREAR
         document.getElementById('form-crear').addEventListener('submit', async (e) => {
             e.preventDefault();
             let pdfData = null; let pdfName = null;
@@ -184,14 +170,14 @@
                 pdfData = await convertBase64(fileInput.files[0]);
                 pdfName = fileInput.files[0].name;
             }
-
+            
             const data = {
                 nombre: document.getElementById('c-nombre').value,
                 ubicacion: document.getElementById('c-ubicacion').value,
                 estado: document.getElementById('c-estado').value,
                 pdf_data: pdfData, pdf_nombre: pdfName
             };
-
+            
             const res = await fetch('/api/equipos', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
             const json = await res.json();
             
@@ -200,11 +186,11 @@
                 document.getElementById('qrcode-crear').innerHTML = "";
                 new QRCode(document.getElementById("qrcode-crear"), { text: `${window.location.origin}/detalle?id=${json.id}`, width:128, height:128 });
                 document.getElementById('form-crear').reset();
-                cargarLista(); 
+                cargarLista();
             }
         });
 
-        // === 2. GESTIONAR: CARGAR TABLA ===
+        // CARGAR TABLA
         async function cargarLista() {
             const res = await fetch('/api/equipos');
             const equipos = await res.json();
@@ -218,51 +204,71 @@
                         <td><strong>${eq.id}</strong></td>
                         <td>${eq.nombre}<br><small class="text-muted">${eq.ubicacion}</small></td>
                         <td class="${color} fw-bold" style="font-size: 0.8rem;">${eq.estado}</td>
-                        <td><button class="btn btn-sm btn-outline-primary">➡️</button></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-danger" title="Eliminar" onclick="eliminarEquipo(${eq.id}, event)">🗑️</button>
+                        </td>
                     </tr>
                 `;
                 tbody.innerHTML += row;
             });
         }
 
-        // === 3. SELECCIONAR EQUIPO ===
+        // ELIMINAR EQUIPO (NUEVA FUNCIÓN)
+        async function eliminarEquipo(id, event) {
+            event.stopPropagation(); // Evita que al hacer click se abra el panel de edición
+            
+            const confirmacion = confirm("⚠️ ¿Estás seguro de que quieres ELIMINAR este equipo?\n\nSe borrará todo el historial y no podrás recuperarlo.");
+            
+            if (confirmacion) {
+                const res = await fetch(`/api/equipos/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    // Si el equipo que borramos estaba abierto en el panel izquierdo, limpiamos el panel
+                    const idAbierto = document.getElementById('e-id').value;
+                    if (idAbierto == id) {
+                        limpiarFormulario();
+                    }
+                    cargarLista(); // Refrescar tabla
+                    alert("Equipo eliminado correctamente.");
+                } else {
+                    alert("Error al eliminar el equipo.");
+                }
+            }
+        }
+
+        // SELECCIONAR
         async function cargarEquipo(id) {
             
             document.getElementById('msg-seleccione').classList.add('d-none');
             document.getElementById('editor-container').classList.remove('d-none');
             
-            
+
             const res = await fetch(`/api/equipos/${id}`);
             const data = await res.json();
             const eq = data.equipo;
-
             
+
             document.getElementById('e-id').value = eq.id;
             document.getElementById('edit-nombre').value = eq.nombre;
             document.getElementById('edit-ubicacion').value = eq.ubicacion;
             
-            
+
             const pdfStatus = document.getElementById('pdf-status');
             if(eq.pdf_nombre) {
                 pdfStatus.classList.remove('d-none');
                 pdfStatus.innerText = `📄 Documento actual: ${eq.pdf_nombre}`;
-            } else {
-                pdfStatus.classList.add('d-none');
-            }
-
-            
+            } else { pdfStatus.classList.add('d-none'); }
             const qrContainer = document.getElementById('qrcode-edit');
             qrContainer.innerHTML = "";
             const url = `${window.location.origin}/detalle?id=${eq.id}`;
             new QRCode(qrContainer, { text: url, width: 160, height: 160 });
             document.getElementById('url-edit').innerText = url;
-
            
+
             const now = new Date();
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             document.getElementById('r-fecha').value = now.toISOString().slice(0,16);
-
             
+
             const historialDiv = document.getElementById('lista-historial');
             historialDiv.innerHTML = '';
             data.historial.slice(0, 3).forEach(h => {
@@ -270,12 +276,11 @@
                     <div class="historial-item">
                         <strong>${h.encargado}</strong> <span class="text-muted">(${new Date(h.fecha).toLocaleDateString()})</span>
                         <br>${h.descripcion}
-                    </div>
-                `;
+                    </div>`;
             });
         }
 
-        // === 4. GUARDAR EDICIÓN ===
+        // GUARDAR EDICION BASICA
         document.getElementById('form-editar-basico').addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('e-id').value;
@@ -286,21 +291,21 @@
                 pdfData = await convertBase64(fileInput.files[0]);
                 pdfName = fileInput.files[0].name;
             }
-
+            
             const data = {
                 nombre: document.getElementById('edit-nombre').value,
                 ubicacion: document.getElementById('edit-ubicacion').value,
                 pdf_data: pdfData, pdf_nombre: pdfName,
                 estado: "OPERATIVO"
             };
-
+            
             await fetch(`/api/equipos/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
             alert("Datos actualizados");
-            cargarLista(); 
-            cargarEquipo(id); 
+            cargarLista();
+            cargarEquipo(id);
         });
 
-        // === 5. GUARDAR REVISIÓN ===
+        // GUARDAR REVISION
         document.getElementById('form-save-revision').addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('e-id').value;
@@ -317,13 +322,14 @@
             cargarEquipo(id);
         });
 
-        
         function limpiarFormulario() {
             document.getElementById('editor-container').classList.add('d-none');
             document.getElementById('msg-seleccione').classList.remove('d-none');
             document.getElementById('form-editar-basico').reset();
             document.getElementById('form-save-revision').reset();
             document.getElementById('qrcode-edit').innerHTML = "";
+            // También reseteamos el id oculto para evitar errores
+            document.getElementById('e-id').value = "";
         }
 
         function filtrarTabla() {

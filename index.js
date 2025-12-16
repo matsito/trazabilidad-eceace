@@ -12,7 +12,7 @@ const pool = new Pool({
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// AUMENTAMOS EL LÍMITE A 50MB PARA PODER SUBIR PDFs
+// Límite 50MB para PDFs
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -23,18 +23,18 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboar
 app.get('/detalle', (req, res) => res.sendFile(path.join(__dirname, 'public', 'detalle.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
-// === API (CEREBRO) ===
+// === API ===
 
-// 1. Dashboard (Lista simple)
+// 1. Obtener todos
 app.get('/api/equipos', async (req, res) => {
     try {
         const result = await pool.query('SELECT id, nombre, ubicacion, estado, ultima_revision FROM equipos ORDER BY id ASC');
         res.json(result.rows);
-    
+   
     } catch (err) { res.status(500).send(err.message); }
 });
 
-// 2. Detalle único (Con PDF e Historial)
+// 2. Obtener uno
 app.get('/api/equipos/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -48,7 +48,7 @@ app.get('/api/equipos/:id', async (req, res) => {
     } catch (err) { res.status(500).send(err.message); }
 });
 
-// 3. Crear equipo (Con PDF opcional)
+// 3. Crear
 app.post('/api/equipos', async (req, res) => {
     try {
         const { nombre, ubicacion, estado, pdf_data, pdf_nombre } = req.body;
@@ -58,7 +58,7 @@ app.post('/api/equipos', async (req, res) => {
             [nombre, ubicacion, estado, pdf_data, pdf_nombre]
         );
         
-        // Historial inicial
+        
         await pool.query(
             'INSERT INTO historial (equipo_id, encargado, descripcion, estado_en_ese_momento) VALUES ($1, $2, $3, $4)',
             [result.rows[0].id, 'Sistema', 'Equipo creado', estado]
@@ -68,31 +68,25 @@ app.post('/api/equipos', async (req, res) => {
     } catch (err) { res.status(500).send(err.message); }
 });
 
-// 4. Actualizar Equipo (Y subir/cambiar PDF)
+// 4. Actualizar
 app.put('/api/equipos/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { nombre, ubicacion, estado, ultima_revision, pdf_data, pdf_nombre } = req.body;
         const fechaFinal = ultima_revision ? ultima_revision : new Date();
 
-        
         await pool.query(
             `UPDATE equipos SET 
-                nombre=$1, 
-                ubicacion=$2, 
-                estado=$3, 
-                ultima_revision=$4,
-                pdf_data = COALESCE($5, pdf_data),
-                pdf_nombre = COALESCE($6, pdf_nombre)
+                nombre=$1, ubicacion=$2, estado=$3, ultima_revision=$4,
+                pdf_data = COALESCE($5, pdf_data), pdf_nombre = COALESCE($6, pdf_nombre)
              WHERE id=$7`,
             [nombre, ubicacion, estado, fechaFinal, pdf_data, pdf_nombre, id]
         );
-        
-        res.json({ mensaje: 'Actualizado correctamente' });
+        res.json({ mensaje: 'Actualizado' });
     } catch (err) { res.status(500).send(err.message); }
 });
 
-// 5. Agregar Revisión (Historial)
+// 5. Historial
 app.post('/api/equipos/:id/revision', async (req, res) => {
     try {
         const { id } = req.params;
@@ -104,10 +98,25 @@ app.post('/api/equipos/:id/revision', async (req, res) => {
             'INSERT INTO historial (equipo_id, encargado, descripcion, fecha, estado_en_ese_momento) VALUES ($1, $2, $3, $4, $5)',
             [id, encargado, descripcion, fechaFinal, nuevo_estado]
         );
-
+        
         await pool.query('UPDATE equipos SET estado=$1, ultima_revision=$2 WHERE id=$3', [nuevo_estado, fechaFinal, id]);
         
         res.json({ mensaje: 'Revisión agregada' });
+    } catch (err) { res.status(500).send(err.message); }
+});
+
+// 6. ELIMINAR (¡NUEVO!)
+app.delete('/api/equipos/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Primero borramos el historial para evitar error de FK (Llave foránea)
+        await pool.query('DELETE FROM historial WHERE equipo_id = $1', [id]);
+        // Luego borramos el equipo
+        const result = await pool.query('DELETE FROM equipos WHERE id = $1', [id]);
+        
+        if (result.rowCount === 0) return res.status(404).json({ mensaje: "No encontrado" });
+        
+        res.json({ mensaje: "Equipo eliminado correctamente" });
     } catch (err) { res.status(500).send(err.message); }
 });
 
