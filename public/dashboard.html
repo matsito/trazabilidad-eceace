@@ -20,7 +20,7 @@
             border-radius: 50%;
             display: inline-block;
         }
-        /* Efectos de luz brillante para el semáforo */
+
         .bg-success-glow { background-color: #28a745; box-shadow: 0 0 10px #28a745; }
         .bg-danger-glow { background-color: #dc3545; box-shadow: 0 0 10px #dc3545; }
     </style>
@@ -37,50 +37,67 @@
     </nav>
 
     <div class="container">
-        <h2 class="mb-4 text-center">Estado de Equipos en Tiempo Real</h2>
+        <h2 class="mb-4 text-center">Estado de Equipos en Tiempo Real (BD)</h2>
 
         <div class="row" id="equipos-container">
-            <div class="col-md-4 mb-4">
-                <div class="card card-equipo p-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Tablero General UCI</h5>
-                        <span class="status-indicator bg-success-glow"></span>
-                    </div>
-                    <hr>
-                    <p class="text-muted small">Ubicación: Pabellón A</p>
-                    <p class="mb-0"><strong>Estado: OPERATIVO</strong></p>
-                    <small class="text-muted">Última revisión: Hoy, 09:00 AM</small>
+            <div class="text-center mt-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
                 </div>
+                <p>Conectando con la Base de Datos...</p>
             </div>
-
-            <div class="col-md-4 mb-4">
-                <div class="card card-equipo p-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Generador Auxiliar 2</h5>
-                        <span class="status-indicator bg-danger-glow"></span>
-                    </div>
-                    <hr>
-                    <p class="text-muted small">Ubicación: Subterráneo</p>
-                    <p class="text-danger mb-0"><strong>Estado: FALLA CRÍTICA</strong></p>
-                    <small class="text-muted">Última revisión: Ayer, 18:30 PM</small>
-                </div>
-            </div>
-
-            <div class="col-md-4 mb-4">
-                <div class="card card-equipo p-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Banco Condensadores</h5>
-                        <span class="status-indicator bg-success-glow"></span>
-                    </div>
-                    <hr>
-                    <p class="text-muted small">Ubicación: Sala Eléctrica 1</p>
-                    <p class="mb-0"><strong>Estado: OPERATIVO</strong></p>
-                    <small class="text-muted">Última revisión: Hoy, 10:15 AM</small>
-                </div>
-            </div>
-
         </div>
     </div>
+
+    <script>
+        async function cargarEquipos() {
+            try {
+                // 1. Pedimos los datos al servidor
+                const response = await fetch('/api/equipos');
+                const equipos = await response.json();
+
+                const container = document.getElementById('equipos-container');
+                container.innerHTML = ''; // Limpiamos el mensaje de carga
+
+                // 2. Por cada equipo que llegue, creamos una tarjeta
+                equipos.forEach(equipo => {
+                    // Decidir color según el estado
+                    let colorLuz = 'bg-success-glow';
+                    let colorTexto = 'text-dark';
+                    
+                    if (equipo.estado === 'FALLA CRÍTICA') {
+                        colorLuz = 'bg-danger-glow';
+                        colorTexto = 'text-danger';
+                    }
+
+                    // Crear el HTML de la tarjeta
+                    const cardHTML = `
+                        <div class="col-md-4 mb-4">
+                            <div class="card card-equipo p-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">${equipo.nombre}</h5>
+                                    <span class="status-indicator ${colorLuz}"></span>
+                                </div>
+                                <hr>
+                                <p class="text-muted small">Ubicación: ${equipo.ubicacion}</p>
+                                <p class="${colorTexto} mb-0"><strong>Estado: ${equipo.estado}</strong></p>
+                                <small class="text-muted">Revisión: ${new Date(equipo.ultima_revision).toLocaleDateString()}</small>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Agregar la tarjeta al contenedor
+                    container.innerHTML += cardHTML;
+                });
+
+            } catch (error) {
+                console.error('Error cargando equipos:', error);
+            }
+        }
+
+        // Ejecutar la función al cargar la página
+        cargarEquipos();
+    </script>
 
 </body>
 </html>

@@ -1,31 +1,31 @@
 const express = require('express');
-const { Pool } = require('pg'); // Importamos la librería para PostgreSQL
+const { Pool } = require('pg'); 
 const path = require('path');
 
 const app = express();
 const port = process.env.PORT || 8080; 
 
 // === CONFIGURACIÓN DE LA BASE DE DATOS (POSTGRESQL) ===
-// Aquí le decimos que busque la URL en las variables de entorno de Render.
+// Conectamos con la URL que nos da Render
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// Middlewares (Configuración básica para entender datos)
+// Middlewares (Configuración básica)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+// Servir archivos de la carpeta 'public' (HTML, CSS, JS)
 app.use(express.static(path.join(__dirname, 'public')));
 
 // === RUTAS ===
 
-// 1. Ruta Principal: Servirá nuestro tablero (lo crearemos en el sig. paso)
+// 1. Ruta Principal: Muestra la página web (el Dashboard)
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
-// 2. Ruta de Prueba de Base de Datos
-// Esta ruta la usaremos para confirmar que PostgreSQL responde.
+// 2. Ruta de Prueba: Verifica conexión a la BD
 app.get('/test-db', async (req, res) => {
     try {
         const client = await pool.connect();
@@ -34,7 +34,21 @@ app.get('/test-db', async (req, res) => {
         res.json({ estado: 'Conectado', fecha_servidor: result.rows[0].now });
     } catch (err) {
         console.error(err);
-        res.status(500).json({ estado: 'Error de conexión', error: err.message });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 3. RUTA NUEVA: API DE EQUIPOS
+// Esta ruta va a la Base de Datos, busca la tabla 'equipos' y devuelve los datos en JSON.
+app.get('/api/equipos', async (req, res) => {
+    try {
+        // Consultamos a la base de datos
+        const result = await pool.query('SELECT * FROM equipos ORDER BY id ASC');
+        // Enviamos la lista de equipos al navegador
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error al obtener equipos de la base de datos');
     }
 });
 
