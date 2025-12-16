@@ -12,11 +12,9 @@ const pool = new Pool({
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-
-app.use(express.json());
-
-app.use(express.urlencoded({ extended: true }));
-
+// AUMENTAMOS EL LÍMITE A 50MB PARA PODER SUBIR PDFs
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(cors());
 
@@ -27,79 +25,92 @@ app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'adm
 
 // === API (CEREBRO) ===
 
-// 1. Obtener lista completa (Dashboard)
+// 1. Dashboard
 app.get('/api/equipos', async (req, res) => {
     try {
-
-       
-        const result = await pool.query('SELECT * FROM equipos ORDER BY id ASC');
-        
-
+        const result = await pool.query('SELECT id, nombre, ubicacion, estado, ultima_revision FROM equipos ORDER BY id ASC');
         res.json(result.rows);
-
-   
+    
     } catch (err) { res.status(500).send(err.message); }
 });
 
-// 2. Obtener UN equipo y su historial
+// 2. Detalle único (INCLUYENDO PDF)
 app.get('/api/equipos/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        // Datos del equipo
+        
         const equipoResult = await pool.query('SELECT * FROM equipos WHERE id = $1', [id]);
         if (equipoResult.rows.length === 0) return res.status(404).json({ mensaje: "No encontrado" });
 
-        // Historial de ese equipo (Ordenado del más nuevo al más viejo)
+        
         const historialResult = await pool.query('SELECT * FROM historial WHERE equipo_id = $1 ORDER BY fecha DESC', [id]);
 
-        res.json({
-            equipo: equipoResult.rows[0],
-            historial: historialResult.rows
-        });
+        res.json({ equipo: equipoResult.rows[0], historial: historialResult.rows });
     } catch (err) { res.status(500).send(err.message); }
 });
 
-// 3. Crear equipo nuevo
+// 3. Crear equipo (Con PDF opcional)
 app.post('/api/equipos', async (req, res) => {
     try {
-        const { nombre, ubicacion, estado } = req.body;
-        // Insertamos equipo
+        const { nombre, ubicacion, estado, pdf_data, pdf_nombre } = req.body;
+        
         const result = await pool.query(
-            'INSERT INTO equipos (nombre, ubicacion, estado) VALUES ($1, $2, $3) RETURNING id',
-            [nombre, ubicacion, estado]
-        );
-        // Creamos la primera entrada en el historial (Creación)
-        const newId = result.rows[0].id;
-        await pool.query(
-            'INSERT INTO historial (equipo_id, encargado, descripcion, estado_en_ese_momento) VALUES ($1, $2, $3, $4)',
-            [newId, 'Sistema', 'Equipo dado de alta en el sistema', estado]
+            'INSERT INTO equipos (nombre, ubicacion, estado, pdf_data, pdf_nombre) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+            [nombre, ubicacion, estado, pdf_data, pdf_nombre]
         );
         
-        res.json({ mensaje: 'Creado', id: newId });
+        // Historial inicial
+        await pool.query(
+            'INSERT INTO historial (equipo_id, encargado, descripcion, estado_en_ese_momento) VALUES ($1, $2, $3, $4)',
+            [result.rows[0].id, 'Sistema', 'Equipo creado', estado]
+        );
+        
+        res.json({ mensaje: 'Creado', id: result.rows[0].id });
     } catch (err) { res.status(500).send(err.message); }
 });
 
-// 4. NUEVO: AGREGAR REVISIÓN (Actualizar)
+// 4. Actualizar Equipo (Y subir/cambiar PDF si quieren)
+app.put('/api/equipos/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nombre, ubicacion, estado, ultima_revision, pdf_data, pdf_nombre } = req.body;
+        const fechaFinal = ultima_revision ? ultima_revision : new Date();
+
+        // Lógica: Si envían un PDF nuevo, lo actualizamos. Si no, dejamos el que estaba.
+        // COALESCE en SQL significa: "Si el dato nuevo es null, usa el que ya estaba en la tabla"
+        await pool.query(
+            `UPDATE equipos SET 
+                nombre=$1, 
+                ubicacion=$2, 
+                estado=$3, 
+                ultima_revision=$4,
+                pdf_data = COALESCE($5, pdf_data),
+                pdf_nombre = COALESCE($6, pdf_nombre)
+             WHERE id=$7`,
+            [nombre, ubicacion, estado, fechaFinal, pdf_data, pdf_nombre, id]
+        );
+        
+        res.json({ mensaje: 'Actualizado correctamente' });
+    } catch (err) { res.status(500).send(err.message); }
+});
+
+// 5. Agregar Revisión (Historial)
 app.post('/api/equipos/:id/revision', async (req, res) => {
     try {
         const { id } = req.params;
         const { encargado, descripcion, fecha, nuevo_estado } = req.body;
-
+        
         const fechaFinal = fecha ? fecha : new Date();
 
-        // 1. Guardar en el Historial
+        
         await pool.query(
             'INSERT INTO historial (equipo_id, encargado, descripcion, fecha, estado_en_ese_momento) VALUES ($1, $2, $3, $4, $5)',
             [id, encargado, descripcion, fechaFinal, nuevo_estado]
         );
 
-        // 2. Actualizar el estado actual del equipo (La "foto" de portada)
-        await pool.query(
-            'UPDATE equipos SET estado=$1, ultima_revision=$2 WHERE id=$3',
-            [nuevo_estado, fechaFinal, id]
-        );
+        await pool.query('UPDATE equipos SET estado=$1, ultima_revision=$2 WHERE id=$3', [nuevo_estado, fechaFinal, id]);
         
-        res.json({ mensaje: 'Revisión agregada correctamente' });
+        res.json({ mensaje: 'Revisión agregada' });
     } catch (err) { res.status(500).send(err.message); }
 });
 

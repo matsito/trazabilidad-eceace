@@ -22,7 +22,7 @@
         
         <div id="loading" class="text-center py-5">
             <div class="spinner-border text-primary" role="status"></div>
-            <p>Cargando trazabilidad...</p>
+            <p>Cargando información...</p>
         </div>
 
         <div id="ficha-container" class="card main-card d-none">
@@ -35,6 +35,12 @@
             <div class="card-body p-4 bg-white">
                 <h4 id="nombre-equipo" class="text-center fw-bold mb-4">...</h4>
                 
+                <div id="pdf-container" class="d-none text-center mb-4">
+                    <a id="btn-pdf" href="#" download="certificado.pdf" class="btn btn-outline-primary w-100">
+                        📄 Descargar Certificado / Documento
+                    </a>
+                </div>
+
                 <p class="text-muted mb-1 small">UBICACIÓN</p>
                 <h5 id="ubicacion-equipo" class="mb-3">...</h5>
 
@@ -44,42 +50,47 @@
                 <hr>
                 
                 <h5 class="mb-3">📋 Historial de Mantenimiento</h5>
-                <div id="historial-timeline" class="timeline">
-                    </div>
+                <div id="historial-timeline" class="timeline"></div>
 
-                <div class="text-center mt-4 text-muted small">
-                    ID Sistema: <span id="id-equipo">#</span>
-                </div>
+                <div class="text-center mt-4 text-muted small">ID: <span id="id-equipo">#</span></div>
             </div>
         </div>
-
+    
     </div>
 
     <script>
-
+        
         async function cargarFicha() {
             try {
-
+                
                 const params = new URLSearchParams(window.location.search);
                 const id = params.get('id');
                 if (!id) throw new Error("No ID");
 
-                // Pedimos equipo + historial
+                
                 const response = await fetch(`/api/equipos/${id}`);
                 if (!response.ok) throw new Error("Error");
                 const data = await response.json(); 
-                // data = { equipo: {...}, historial: [...] }
+
 
                 document.getElementById('loading').classList.add('d-none');
                 document.getElementById('ficha-container').classList.remove('d-none');
 
-                // Llenar datos básicos
+               
                 const eq = data.equipo;
                 document.getElementById('nombre-equipo').innerText = eq.nombre;
                 document.getElementById('ubicacion-equipo').innerText = eq.ubicacion;
                 document.getElementById('id-equipo').innerText = `#${eq.id}`;
 
-                // Color encabezado
+                // Lógica del PDF
+                if (eq.pdf_data) {
+                    document.getElementById('pdf-container').classList.remove('d-none');
+                    const btn = document.getElementById('btn-pdf');
+                    btn.href = eq.pdf_data; // El código Base64 va directo al enlace
+                    btn.download = eq.pdf_nombre || "documento_equipo.pdf";
+                }
+
+                // Colores
                 const header = document.getElementById('header-status');
                 const txt = document.getElementById('estado-texto');
                 const ico = header.querySelector('h1');
@@ -94,10 +105,10 @@
                     ico.innerHTML = '&#10004;';
                 }
 
-                // Llenar Historial
+                // Historial
                 const timeline = document.getElementById('historial-timeline');
                 timeline.innerHTML = '';
-
+               
                 data.historial.forEach(h => {
                     const fecha = new Date(h.fecha).toLocaleString();
                     timeline.innerHTML += `
@@ -110,10 +121,7 @@
                     `;
                 });
 
-            } catch (error) {
-                console.error(error);
-                document.getElementById('loading').innerHTML = '<p class="text-danger">Equipo no encontrado</p>';
-            }
+            } catch (error) { console.error(error); }
         }
         
         cargarFicha();
