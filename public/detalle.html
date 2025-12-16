@@ -7,26 +7,13 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background-color: #e9ecef; }
-        .main-card {
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            overflow: hidden;
-            border: none;
-        }
-        .header-status {
-            padding: 40px 20px;
-            text-align: center;
-            color: white;
-        }
+        .main-card { border-radius: 20px; overflow: hidden; border: none; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .header-status { padding: 40px 20px; text-align: center; color: white; }
         .bg-operativo { background: linear-gradient(135deg, #28a745, #20c997); }
         .bg-falla { background: linear-gradient(135deg, #dc3545, #f74d5d); }
-        
-        .info-row {
-            padding: 15px 0;
-            border-bottom: 1px solid #eee;
-        }
-        .info-label { font-weight: bold; color: #6c757d; font-size: 0.9em; }
-        .info-value { font-size: 1.1em; font-weight: 500; }
+        .timeline { border-left: 2px solid #ddd; margin-left: 10px; padding-left: 20px; }
+        .timeline-item { position: relative; margin-bottom: 20px; }
+        .timeline-item::before { content: ''; position: absolute; left: -26px; top: 5px; width: 12px; height: 12px; border-radius: 50%; background: #0d6efd; }
     </style>
 </head>
 <body>
@@ -35,105 +22,100 @@
         
         <div id="loading" class="text-center py-5">
             <div class="spinner-border text-primary" role="status"></div>
-            <p class="mt-2">Cargando ficha del equipo...</p>
+            <p>Cargando trazabilidad...</p>
         </div>
 
         <div id="ficha-container" class="card main-card d-none">
             <div id="header-status" class="header-status bg-operativo">
-                <h1 style="font-size: 4rem;">&#10004;</h1> <h3 id="estado-texto" class="mb-0">OPERATIVO</h3>
+                <h1 style="font-size: 4rem;">&#10004;</h1>
+                <h3 id="estado-texto" class="mb-0">OPERATIVO</h3>
                 <small>Estado Actual</small>
             </div>
 
             <div class="card-body p-4 bg-white">
-                <h4 id="nombre-equipo" class="text-center mb-4 font-weight-bold">Cargando...</h4>
-
-                <div class="info-row">
-                    <div class="info-label">UBICACIÓN</div>
-                    <div id="ubicacion-equipo" class="info-value">-</div>
-                </div>
-
-                <div class="info-row">
-                    <div class="info-label">EMPRESA / RESPONSABLE</div>
-                    <div class="info-value">ECEACE Servicios</div>
-                </div>
-
-                <div class="info-row">
-                    <div class="info-label">ÚLTIMA REVISIÓN</div>
-                    <div id="fecha-revision" class="info-value">-</div>
-                </div>
+                <h4 id="nombre-equipo" class="text-center fw-bold mb-4">...</h4>
                 
-                <div class="info-row border-0">
-                    <div class="info-label">ID SISTEMA</div>
-                    <div id="id-equipo" class="info-value text-muted">-</div>
-                </div>
+                <p class="text-muted mb-1 small">UBICACIÓN</p>
+                <h5 id="ubicacion-equipo" class="mb-3">...</h5>
 
-                <div class="d-grid gap-2 mt-4">
-                    <button class="btn btn-outline-primary" onclick="window.location.href='/'">
-                        Ver Tablero General
-                    </button>
+                <p class="text-muted mb-1 small">EMPRESA RESPONSABLE</p>
+                <h5 class="mb-4">ECEACE Servicios</h5>
+                
+                <hr>
+                
+                <h5 class="mb-3">📋 Historial de Mantenimiento</h5>
+                <div id="historial-timeline" class="timeline">
+                    </div>
+
+                <div class="text-center mt-4 text-muted small">
+                    ID Sistema: <span id="id-equipo">#</span>
                 </div>
             </div>
         </div>
 
-        <div id="error-msg" class="alert alert-danger d-none mt-4 text-center">
-            Equipo no encontrado o código QR inválido.
-        </div>
-        
-        <p class="text-center text-muted mt-4 small">Sistema de Trazabilidad Digital ECEACE</p>
     </div>
 
     <script>
-        // Lógica para leer el QR (URL)
+
         async function cargarFicha() {
             try {
-                // 1. Obtener el ID de la dirección web (ej: ?id=1)
+
                 const params = new URLSearchParams(window.location.search);
                 const id = params.get('id');
+                if (!id) throw new Error("No ID");
 
-                if (!id) {
-                    throw new Error("No hay ID");
-                }
-
-                // 2. Pedir datos al servidor
+                // Pedimos equipo + historial
                 const response = await fetch(`/api/equipos/${id}`);
-                
-                if (!response.ok) throw new Error("Equipo no encontrado");
+                if (!response.ok) throw new Error("Error");
+                const data = await response.json(); 
+                // data = { equipo: {...}, historial: [...] }
 
-                const equipo = await response.json();
-
-                // 3. Rellenar la ficha visual
                 document.getElementById('loading').classList.add('d-none');
                 document.getElementById('ficha-container').classList.remove('d-none');
 
-                document.getElementById('nombre-equipo').innerText = equipo.nombre;
-                document.getElementById('ubicacion-equipo').innerText = equipo.ubicacion;
-                document.getElementById('id-equipo').innerText = `#${equipo.id}`;
-                
-                // Formatear fecha
-                const fecha = new Date(equipo.ultima_revision);
-                document.getElementById('fecha-revision').innerText = fecha.toLocaleString();
+                // Llenar datos básicos
+                const eq = data.equipo;
+                document.getElementById('nombre-equipo').innerText = eq.nombre;
+                document.getElementById('ubicacion-equipo').innerText = eq.ubicacion;
+                document.getElementById('id-equipo').innerText = `#${eq.id}`;
 
-                // 4. Cambiar colores según estado
+                // Color encabezado
                 const header = document.getElementById('header-status');
-                const estadoTexto = document.getElementById('estado-texto');
-                const icono = header.querySelector('h1');
+                const txt = document.getElementById('estado-texto');
+                const ico = header.querySelector('h1');
 
-                if (equipo.estado === 'FALLA CRÍTICA') {
+                if (eq.estado === 'FALLA CRÍTICA') {
                     header.className = 'header-status bg-falla';
-                    estadoTexto.innerText = 'FALLA DETECTADA';
-                    icono.innerHTML = '&#9888;'; // Triángulo alerta
+                    txt.innerText = 'FALLA DETECTADA';
+                    ico.innerHTML = '&#9888;';
                 } else {
                     header.className = 'header-status bg-operativo';
-                    estadoTexto.innerText = 'OPERATIVO';
-                    icono.innerHTML = '&#10004;'; // Check
+                    txt.innerText = 'OPERATIVO';
+                    ico.innerHTML = '&#10004;';
                 }
 
+                // Llenar Historial
+                const timeline = document.getElementById('historial-timeline');
+                timeline.innerHTML = '';
+
+                data.historial.forEach(h => {
+                    const fecha = new Date(h.fecha).toLocaleString();
+                    timeline.innerHTML += `
+                        <div class="timeline-item">
+                            <p class="mb-0 fw-bold">${h.encargado}</p>
+                            <small class="text-muted">${fecha}</small>
+                            <p class="mt-1 mb-0 text-dark">${h.descripcion}</p>
+                            <span class="badge bg-secondary">${h.estado_en_ese_momento}</span>
+                        </div>
+                    `;
+                });
+
             } catch (error) {
-                document.getElementById('loading').classList.add('d-none');
-                document.getElementById('error-msg').classList.remove('d-none');
+                console.error(error);
+                document.getElementById('loading').innerHTML = '<p class="text-danger">Equipo no encontrado</p>';
             }
         }
-
+        
         cargarFicha();
     </script>
 </body>

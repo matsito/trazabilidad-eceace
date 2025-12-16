@@ -1,12 +1,12 @@
 const express = require('express');
 const { Pool } = require('pg'); 
 const path = require('path');
-const cors = require('cors'); // Agregamos cors por seguridad básica
+const cors = require('cors');
 
 const app = express();
 const port = process.env.PORT || 8080; 
 
-// === 1. CONFIGURACIÓN ===
+// === CONFIGURACIÓN DB ===
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
@@ -20,73 +20,87 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(cors());
 
-// === 2. RUTAS WEB ===
+// === RUTAS VISUALES ===
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
 app.get('/detalle', (req, res) => res.sendFile(path.join(__dirname, 'public', 'detalle.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
-// === 3. API (CEREBRO) ===
+// === API (CEREBRO) ===
 
-// A. Obtener TODOS (Para Dashboard)
+// 1. Obtener lista completa (Dashboard)
 app.get('/api/equipos', async (req, res) => {
     try {
 
        
-        
         const result = await pool.query('SELECT * FROM equipos ORDER BY id ASC');
         
-        
+
         res.json(result.rows);
 
-
-
+   
     } catch (err) { res.status(500).send(err.message); }
 });
 
-// B. Obtener UNO (Para Ficha QR y para Editar)
+// 2. Obtener UN equipo y su historial
 app.get('/api/equipos/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const result = await pool.query('SELECT * FROM equipos WHERE id = $1', [id]);
-        if (result.rows.length === 0) return res.status(404).json({ mensaje: "No encontrado" });
-        res.json(result.rows[0]);
+        // Datos del equipo
+        const equipoResult = await pool.query('SELECT * FROM equipos WHERE id = $1', [id]);
+        if (equipoResult.rows.length === 0) return res.status(404).json({ mensaje: "No encontrado" });
+
+        // Historial de ese equipo (Ordenado del más nuevo al más viejo)
+        const historialResult = await pool.query('SELECT * FROM historial WHERE equipo_id = $1 ORDER BY fecha DESC', [id]);
+
+        res.json({
+            equipo: equipoResult.rows[0],
+            historial: historialResult.rows
+        });
     } catch (err) { res.status(500).send(err.message); }
 });
 
-// C. CREAR NUEVO (Con fecha manual opcional)
+// 3. Crear equipo nuevo
 app.post('/api/equipos', async (req, res) => {
     try {
-        const { nombre, ubicacion, estado, ultima_revision } = req.body;
-        
-        // Si no mandan fecha, usamos la actual. Si mandan, usamos esa.
-        const fechaFinal = ultima_revision ? ultima_revision : new Date();
-
+        const { nombre, ubicacion, estado } = req.body;
+        // Insertamos equipo
         const result = await pool.query(
-            'INSERT INTO equipos (nombre, ubicacion, estado, ultima_revision) VALUES ($1, $2, $3, $4) RETURNING id',
-            [nombre, ubicacion, estado, fechaFinal]
+            'INSERT INTO equipos (nombre, ubicacion, estado) VALUES ($1, $2, $3) RETURNING id',
+            [nombre, ubicacion, estado]
         );
-        res.json({ mensaje: 'Creado', id: result.rows[0].id });
+        // Creamos la primera entrada en el historial (Creación)
+        const newId = result.rows[0].id;
+        await pool.query(
+            'INSERT INTO historial (equipo_id, encargado, descripcion, estado_en_ese_momento) VALUES ($1, $2, $3, $4)',
+            [newId, 'Sistema', 'Equipo dado de alta en el sistema', estado]
+        );
+        
+        res.json({ mensaje: 'Creado', id: newId });
     } catch (err) { res.status(500).send(err.message); }
 });
 
-// D. ACTUALIZAR EQUIPO (¡NUEVO!)
-// Permite cambiar estado y fecha sin cambiar el ID (el QR sigue sirviendo)
-app.put('/api/equipos/:id', async (req, res) => {
+// 4. NUEVO: AGREGAR REVISIÓN (Actualizar)
+app.post('/api/equipos/:id/revision', async (req, res) => {
     try {
         const { id } = req.params;
-        const { estado, ultima_revision, nombre, ubicacion } = req.body; // Recibimos todo por si acaso
+        const { encargado, descripcion, fecha, nuevo_estado } = req.body;
 
-        const fechaFinal = ultima_revision ? ultima_revision : new Date();
+        const fechaFinal = fecha ? fecha : new Date();
 
-        // Actualizamos en la base de datos
+        // 1. Guardar en el Historial
         await pool.query(
-            'UPDATE equipos SET nombre=$1, ubicacion=$2, estado=$3, ultima_revision=$4 WHERE id=$5',
-            [nombre, ubicacion, estado, fechaFinal, id]
+            'INSERT INTO historial (equipo_id, encargado, descripcion, fecha, estado_en_ese_momento) VALUES ($1, $2, $3, $4, $5)',
+            [id, encargado, descripcion, fechaFinal, nuevo_estado]
+        );
+
+        // 2. Actualizar el estado actual del equipo (La "foto" de portada)
+        await pool.query(
+            'UPDATE equipos SET estado=$1, ultima_revision=$2 WHERE id=$3',
+            [nuevo_estado, fechaFinal, id]
         );
         
-        res.json({ mensaje: 'Actualizado correctamente' });
+        res.json({ mensaje: 'Revisión agregada correctamente' });
     } catch (err) { res.status(500).send(err.message); }
 });
 
-// === INICIO ===
-app.listen(port, () => console.log(`Servidor listo puerto ${port}`));
+app.listen(port, () => console.log(`Servidor listo en ${port}`));
